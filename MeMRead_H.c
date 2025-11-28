@@ -1,57 +1,48 @@
 #indef MeMRead_H
 #define MeMRead_H
-
 #include<stdio.h>
 #include<stdlib.h>
-char* memread(FILE *accesos_memoria, int num_mem){
-	if(num_mem==0){
-		return null;
-	}
-	char mem;
-	char comp='a';
-	char* result=(char*)malloc(1 * sizeof(char));
-	int i=0;
-	while(comp!='\n'&&num_mem!=0){
-		comp=fgetc(accesos_memoria);
-		if(comp!='\n'){
-			result[i]=comp;
-			i++;
-			result=(char*)realloc(result, i * sizeof(char));
-		}
-	}
-	result[i+1] = '\n'
-	return result;
-	
-}	
-
 typedef struct{
 	unsigned char  ETQ;
 	unsigned char Data[TAM_Linea];
 }T_CACHE_LINE;
-
-char* GetBinary(unsigned char NUM){
-	int num = (int)NUM;
-	int i=4;
-	char binary[i];
-	if(num>='0' && num<='9'){
-		num-='0';
+void ParsearDireccion(unsigned int addr, int *ETQ, int *palabra, int *linea, int *bloque){
+	unsigned int comp=addr;
+	comp &= 0xF80;
+	*ETQ=comp;
+	comp=addr;
+	comp &= 0x070;
+	*linea=comp;
+	comp=addr;
+	comp &= 0x00F;
+	*palabra=comp;
+	*bloque=addr/16;
+}	
+void LimpiarCache(T_CACHE_LINE tbl[NUM_FILAS]){
+	for(int i=0;i<=NUM_FILAS){
+		tbl[i].Data=NULL;
+		tbl[i].ETQ=NULL;
 	}
-	else if(num>='A' && num<='F'){
-		num-=55;
-	}
-	else{
-		printf("Error, no se ha dado una direccion de memoria correcta");
-		return NULL;
-	}
-	while(num>0){
-		binary[--i] =(decimal_num%2) + '0';
-		decimal_num /= 2;
-	}
-	return binary;
+	
+}
+void VolcarCACHE(T_CACHE_LINE *tbl) {
+		printf("T: %d, Acierto de CACHE, ADDR %04X Label %X linea %02X palabra %02X DATO %02X\n", globaltime, addr, etq, linea, palabra, Cache[linea].Data[palabra]);
+		
 }
 void TratarFallo(T_CACHE_LINE *tbl, char *MRAM, int ETQ,
 int linea, int bloque){
-	
-	
-	
+	if(tbl.ETQ!=ETQ){
+		numfallos++;
+		printf("T: %d, Fallo de CACHE %d, ADDR %04X Label %X linea %02X palabra %02X bloque %02X", globaltime, numfallos, addr,atoi(*tbl.ETQ), linea, atoi(*tbl.Data), bloque);
+		globaltime+=20;
+		parseardireccion(addr, ETQ,atoi(tbl.Data), linea, bloque);
+		printf("cargando el bloque %02X en la linea %02X", bloque, linea);
+		char newbloque[3];
+		char newETQ[3];
+		newbloque=itoa(bloque, hex, 16);
+		newETQ=itoa(ETQ, hex, 16);
+		*tbl.Data=newbloque;
+		*tbl.ETQ=newETQ;
+	}
 }
+#endif
