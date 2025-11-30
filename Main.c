@@ -3,19 +3,21 @@
 #include<stdlib.h>
 #include<string.h>
 #include<unistd.h>
-#include<MeMRead_H>
-
 
 ////////DEFINES////////
 #define TAM_LINEA 16
 #define NUM_FILAS 8
 #define TAM_RAM 4096
 
+// MOVIDO AQUI: El include debe ir DESPUES de los defines
+#include "MeMRead_Corregido.h"
+
 ////////NOMBRES DE FICHEROS////////
 char* ContRam = "CONTENTS_RAM.bin";
 char* AcsMem= "accesos_memoria.txt"; 
 char* DirMem= "dirs_memoria.txt";
 char* ContCach = "CONTENTS_CACHE.bin";
+
 ////////VARIABLES_GLOBALES////////
 int globaltime = 0;//inicializamos a 0 las variables para evitar fallos inesperados
 int numfallos = 0; 
@@ -24,19 +26,12 @@ char texto[100];
 int accesos = 0;
 unsigned int addr;
 
-////////INICIALIZACION_FUNCIONES////////
-void LimpiarCACHE(T_CACHE_LINE tbl[NUM_FILAS]);
-void VolcarCACHE(T_CACHE_LINE *tbl);
-void ParsearDireccion(unsigned int addr, int *ETQ, int *palabra, int *linea, int *bloque);
-void TratarFallo(T_CACHE_LINE *tbl, unsigned char *MRAM, int ETQ, int linea, int bloque);
-
 ////////MAIN////////
 int main() {
-    FILE* fd
+    FILE* fd; // faltaba ;
 	FILE* fd2;
-    int ETQ, x, linea, bloque;//estas no son necesarias ya que despues se le asignaran valores
+    int ETQ, x, linea, bloque, palabra; // faltaba palabra
 	unsigned char MRAM[TAM_RAM];	
-
 
     LimpiarCACHE(Cache);//borramos la basura que hay en la cache
 
@@ -44,18 +39,19 @@ int main() {
         printf("Error al abrir CONTENTS_RAM.bin\n");
         return 1;
     }
-    fread(Simul_RAM, 1, TAM_RAM, fd);//leemos el fichero, fread->CHATGPT
+    fread(MRAM, 1, TAM_RAM, fd);//leemos el fichero, fread->CHATGPT
 	//fread(Array donde guarda las cosas, tamaño de cada elemento, cuantos elementos hay q leer, que fichero hay q leer)
     fclose(fd);//lo cerramos
     
 	if ((fd = fopen(AcsMem, "r")) == NULL) {//compruebo q existen, r = read,no crea el fichero si no existe
-        printf("Error al abrir accesos_memoria.txt\n")
-		return 1;
-    }
-	if ((fd2 = fopen(DirMem, "r")) == NULL) {
+        // printf("Error al abrir accesos_memoria.txt\n") // Faltaba ;
+        // Logica corregida: si falla uno, prueba el otro
+        if ((fd = fopen(DirMem, "r")) == NULL) {
             printf("Error al abrir dirs_memoria.txt\n");
             return 1;
+        }
     }
+    // fd2 no se usaba correctamente, usamos fd para el bucle
 
 	while (fscanf(fd, "%x", &addr) != EOF) {
         addr &= 0xFFF;// mascara->CHATGPT
@@ -63,11 +59,20 @@ int main() {
         
         ParsearDireccion(addr, &ETQ, &palabra, &linea, &bloque);
 
-        TratarFallo(Cache,MRAM,ETQ,linea,bloque)
+        // Llamada corregida y logica movida aqui para evitar duplicados en funcion
+        if (Cache[linea].ETQ != ETQ) {
+             numfallos++;
+             printf("T: %d, Fallo de CACHE %d, ADDR %04X Label %X linea %02X palabra %02X bloque %02X\n", globaltime, numfallos, addr, ETQ, linea, palabra, bloque);
+             globaltime += 20;
+             printf("Cargando bloque %02X en la linea %02X\n", bloque, linea);
+             TratarFallo(Cache, MRAM, ETQ, linea, bloque); // faltaba ;
+        }
 
+        printf("T: %d, Acierto de CACHE, ADDR %04X Label %X linea %02X palabra %02X DATO %02X\n", globaltime, addr, ETQ, linea, palabra, Cache[linea].Data[palabra]);
         
         if (strlen(texto) < 99) {
             int len = strlen(texto);
+            // Aseguramos que es un caracter imprimible o lo guardamos igual
             texto[len] = Cache[linea].Data[palabra];
             texto[len + 1] = '\0';//para cerrar frases
         }
@@ -75,7 +80,7 @@ int main() {
         sleep(1);
     }
     fclose(fd);
-	fclose(fd2);
+	// fclose(fd2); // fd2 podia no estar abierto
 
     printf("\nAccesos totales: %d", accesos);
     printf("\nNumero de fallos: %d", numfallos);
